@@ -18,16 +18,27 @@ const io = new Server(httpServer, {
 	},
 });
 
-const otherServerSocket = otherIO(process.env.WEB_SOCKET_SERVER, {
-	auth: {
-		token: jwt.sign({ ev_charger_id: 2 }, process.env.WEB_SOCKET_SERVER_KEY),
-	},
-});
+let EV_CHARGER_ID = null;
+let otherServerSocket = null;
 
 io.use((socket, next) => {
-	console.log(socket.id);
+	logger.info({
+		SOCKET_AUTHENTICATION_MIDDLEWARE: {
+			auth: socket.handshake.auth,
+		},
+	});
 
-	console.log("Authentication Middleware");
+	EV_CHARGER_ID = 2;
+
+	otherServerSocket = otherIO(process.env.WEB_SOCKET_SERVER, {
+		auth: {
+			token: jwt.sign(
+				{ ev_charger_id: EV_CHARGER_ID },
+				process.env.WEB_SOCKET_SERVER_KEY
+			),
+		},
+	});
+
 	next();
 });
 
