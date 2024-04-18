@@ -18,7 +18,7 @@ const io = new Server(httpServer, {
 	},
 });
 
-let EV_CHARGER_ID = null;
+let EVSE_UID = null;
 let otherServerSocket = null;
 
 io.use((socket, next) => {
@@ -28,12 +28,12 @@ io.use((socket, next) => {
 		},
 	});
 
-	EV_CHARGER_ID = 2;
+	EVSE_UID = "3b505713-2902-48de-80db-7b0fad55d978";
 
 	otherServerSocket = otherIO(process.env.WEB_SOCKET_SERVER, {
 		auth: {
 			token: jwt.sign(
-				{ ev_charger_id: EV_CHARGER_ID },
+				{ ev_charger_id: EVSE_UID },
 				process.env.WEB_SOCKET_SERVER_KEY
 			),
 		},
@@ -49,25 +49,38 @@ io.on("connection", (socket) => {
 
 	/** THIS EVENTS IS FOR TESTING PURPOSES ONLY */
 	socket.on("charger-status", (data) => {
-		console.log("RECEIVED FROM NADS CHARGER STATUS: " + data);
+		logger.info({
+			CHARGER_STATUS: {
+				data,
+			},
+		});
 
 		socket.broadcast.emit("charger-status", { status: "CHARGING" });
 	});
 
 	socket.on("charging-status", (data) => {
-		console.log("RECEIVED FROM NADS CHARGER STATUS: " + data);
+		logger.info({
+			CHARGING_STATUS: {
+				data,
+			},
+		});
 
 		socket.broadcast.emit("charging-status", { status: "CHARGING" });
 	});
 
 	socket.on("charging-stop-details", (data) => {
-		console.log("RECEIVED FROM NADS CHARGER STATUS: " + data);
+		logger.info({
+			CHARGING_STOP_DETAILS: {
+				data,
+			},
+		});
 
 		socket.broadcast.emit("charging-stop-details", { status: "CHARGING" });
 	});
 	/** =============================================== */
 
 	otherServerSocket.on("connect", () => {
+		logger.info({ CONNECTED_TO_SERVER_SIR_MARC: { message: "SUCCESS" } });
 		socket.broadcast.emit("connected", () => {
 			logger.info({ STATUS: "CONNECTED TO SERVER FROM SIR MARC" });
 		});
@@ -98,7 +111,8 @@ io.on("connection", (socket) => {
 	});
 
 	socket.on("disconnect", () => {
-		console.log(`${socket.id} disconnected`);
+		logger.info({ SOCKET_DISCONNECTED: { message: "SUCCESS" } });
+		otherServerSocket.disconnect(true);
 	});
 });
 
