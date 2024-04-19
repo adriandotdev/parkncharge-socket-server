@@ -1,4 +1,3 @@
-require("dotenv").config();
 const { createLogger, format, transports, addColors } = require("winston");
 const path = require("path");
 const { splat, combine, timestamp, printf, json } = format;
@@ -6,11 +5,10 @@ const myFormat = printf(({ timestamp, level, message, meta }) => {
 	if (meta && meta instanceof Error) {
 		return `[${timestamp}] [${level}] : ${message} ${meta.stack}`;
 	}
-	return `[${timestamp}] [${level}] : ${
-		typeof message === "object" && message !== null
-			? JSON.stringify(message)
-			: message
-	}`;
+	if (typeof message === "object" && message !== null) {
+		return `[${timestamp}] [${level}] : ${JSON.stringify(message, null, 2)}`;
+	}
+	return `[${timestamp}] [${level}] : ${message}`;
 });
 
 require("winston-daily-rotate-file");
@@ -28,13 +26,13 @@ addColors(colors);
 const options = {
 	info: {
 		level: "info",
-		filename: "nspocpi-%DATE%.log",
+		filename: "admin_evses-%DATE%.log",
 		dirname:
 			path.dirname(__dirname) +
 			path.sep +
 			"logs" +
 			path.sep +
-			"nspocpi" +
+			"admin_evses" +
 			path.sep,
 		handleExceptions: true,
 		json: true,
@@ -51,7 +49,7 @@ const options = {
 			path.sep +
 			"logs" +
 			path.sep +
-			"nspocpi" +
+			"admin_evses" +
 			path.sep,
 		handleExceptions: true,
 		json: true,
@@ -78,7 +76,7 @@ const logger = createLogger({
 		timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
 		splat(),
 		json({ stable: true }),
-		format.colorize({ all: true }),
+		format.colorize({ all: false }),
 		myFormat
 	),
 	exitOnError: false,

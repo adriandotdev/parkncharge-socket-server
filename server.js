@@ -18,7 +18,6 @@ const io = new Server(httpServer, {
 	},
 });
 
-let EVSE_UID = null;
 let otherServerSocket = null;
 
 io.use((socket, next) => {
@@ -28,90 +27,123 @@ io.use((socket, next) => {
 		},
 	});
 
-	EVSE_UID = "3b505713-2902-48de-80db-7b0fad55d978";
+	next();
+});
+
+io.on("connection", (socket) => {
+	logger.info({
+		NADS_SERVER_CONNECTION_ESTABLISHED: {
+			message: "SUCCESS",
+		},
+	});
+
+	const EV_CHARGER_ID = socket.handshake.query.ev_charger_id;
+
+	socket.join(socket.handshake.query.ev_charger_id);
 
 	otherServerSocket = otherIO(process.env.WEB_SOCKET_SERVER, {
 		auth: {
 			token: jwt.sign(
-				{ ev_charger_id: EVSE_UID },
+				{ ev_charger_id: EV_CHARGER_ID },
 				process.env.WEB_SOCKET_SERVER_KEY
 			),
 		},
 	});
 
-	next();
-});
-
-io.on("connection", (socket) => {
-	socket.on("new_connection", () => {
-		console.log("New connection");
-	});
-
-	/** THIS EVENTS IS FOR TESTING PURPOSES ONLY */
-	socket.on("charger-status", (data) => {
-		logger.info({
-			CHARGER_STATUS: {
-				data,
-			},
-		});
-
-		socket.broadcast.emit("charger-status", { status: "CHARGING" });
-	});
-
-	socket.on("charging-status", (data) => {
-		logger.info({
-			CHARGING_STATUS: {
-				data,
-			},
-		});
-
-		socket.broadcast.emit("charging-status", { status: "CHARGING" });
-	});
-
-	socket.on("charging-stop-details", (data) => {
-		logger.info({
-			CHARGING_STOP_DETAILS: {
-				data,
-			},
-		});
-
-		socket.broadcast.emit("charging-stop-details", { status: "CHARGING" });
-	});
-	/** =============================================== */
-
+	/** ==================================================================== EVENTS OF SIR MARC ====================================================================== */
 	otherServerSocket.on("connect", () => {
-		logger.info({ CONNECTED_TO_SERVER_SIR_MARC: { message: "SUCCESS" } });
-		socket.broadcast.emit("connected", () => {
-			logger.info({ STATUS: "CONNECTED TO SERVER FROM SIR MARC" });
+		logger.info({
+			SERVER_SIR_MARC_CONNECTION_ESTABLISHED: {
+				message: "SUCCESS",
+			},
 		});
 	});
 
 	otherServerSocket.on("charger-status", (data) => {
-		logger.info({ CHARGER_STATUS: data });
+		logger.info({ CHARGER_STATUS: { ...data } });
 
-		socket.broadcast.emit("charger-status", (data) => {
-			logger.info({ CHARGER_STATUS: data });
-		});
+		if (data.status === "UNPLUGGED-ONLINE") {
+			socket.to(data.ev_charger_id).emit("unplugged-charger", data);
+		}
 	});
 
 	otherServerSocket.on("charging-status", (data) => {
-		logger.info({ CHARGING_STATUS: data });
+		logger.info({ CHARGING_STATUS: { ...data } });
 
-		socket.broadcast.emit("charging-status", (data) => {
-			logger.info({ CHARGING_STATUS: data });
-		});
+		socket.to(data.ev_charger_id).emit("charging-status", data);
 	});
 
 	otherServerSocket.on("charging-stop-details", (data) => {
-		logger.info({ CHARGING_STOP_DETAILS: data });
+		logger.info({ CHARGING_STOP_DETAILS: { ...data } });
 
-		socket.broadcast.emit("charging-stop-details", (data) => {
-			logger.info({ CHARGING_STOP_DETAILS: data });
+		socket.to(data.ev_charger_id).emit("charging-overstay", data);
+	});
+
+	otherServerSocket.on("disconnect", () => {
+		logger.info({
+			DISCONNECTED_FROM_SIR_MARC_SERVER: {
+				message: "SUCCESS",
+			},
 		});
+	});
+	/** ==================================================================== END OF SIR MARC SERVER EVENTS ====================================================================== */
+
+	/** MY OWN EVENTS */
+	socket.on("charger-status", (data) => {
+		logger.info({
+			NADS_CHARGER_STATUS: {
+				...data,
+			},
+		});
+
+		socket.emit("charger-status", data);
+	});
+
+	socket.on("charging-status", (data) => {
+		logger.info({
+			NADS_CHARGING_STATUS: {
+				data,
+			},
+		});
+
+		socket.emit("charging-status", data);
+	});
+
+	socket.on("charging-stop-details", (data) => {
+		logger.info({
+			NADS_CHARGING_STOP_DETAILS: {
+				data,
+			},
+		});
+
+		socket.emit("charging-stop-details", data);
+	});
+
+	socket.on("charging-overstay", (data) => {
+		logger.info({
+			NADS_CHARGING_OVERSTAY: {
+				data,
+			},
+		});
+
+		socket.emit("charging-overstay", data);
+	});
+
+	socket.on("unplugged-charger", (data) => {
+		logger.info({
+			NADS_UNPLUGGED_CHARGER: {
+				data,
+			},
+		});
+
+		socket.emit("unplugged-charger", data);
 	});
 
 	socket.on("disconnect", () => {
-		logger.info({ SOCKET_DISCONNECTED: { message: "SUCCESS" } });
+		logger.info({
+			DISCONNECTED_FROM_NADS_SOCKET_SERVER: { message: "SUCCESS" },
+		});
+
 		otherServerSocket.disconnect(true);
 	});
 });
