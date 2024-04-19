@@ -23,7 +23,7 @@ let otherServerSocket = null;
 io.use((socket, next) => {
 	logger.info({
 		SOCKET_AUTHENTICATION_MIDDLEWARE: {
-			auth: socket.handshake.auth,
+			auth: socket.handshake.headers.authorization,
 		},
 	});
 
@@ -63,20 +63,20 @@ io.on("connection", (socket) => {
 		logger.info({ CHARGER_STATUS: { ...data } });
 
 		if (data.status === "UNPLUGGED-ONLINE") {
-			socket.to(data.ev_charger_id).emit("unplugged-charger", data);
+			socket.emit("unplugged-charger", data);
 		}
 	});
 
 	otherServerSocket.on("charging-status", (data) => {
 		logger.info({ CHARGING_STATUS: { ...data } });
 
-		socket.to(data.ev_charger_id).emit("charging-status", data);
+		socket.emit("charging-status", data);
 	});
 
 	otherServerSocket.on("charging-stop-details", (data) => {
 		logger.info({ CHARGING_STOP_DETAILS: { ...data } });
 
-		socket.to(data.ev_charger_id).emit("charging-overstay", data);
+		socket.emit("charging-overstay", data);
 	});
 
 	otherServerSocket.on("disconnect", () => {
@@ -96,7 +96,7 @@ io.on("connection", (socket) => {
 			},
 		});
 
-		socket.emit("charger-status", data);
+		io.to(data.ev_charger_id).emit("charger-status", data);
 	});
 
 	socket.on("charging-status", (data) => {
@@ -106,7 +106,7 @@ io.on("connection", (socket) => {
 			},
 		});
 
-		socket.emit("charging-status", data);
+		io.to(data.ev_charger_id).emit("charging-status", data);
 	});
 
 	socket.on("charging-stop-details", (data) => {
@@ -116,7 +116,7 @@ io.on("connection", (socket) => {
 			},
 		});
 
-		socket.emit("charging-stop-details", data);
+		io.to(data.ev_charger_id).emit("charging-stop-details", data);
 	});
 
 	socket.on("charging-overstay", (data) => {
@@ -126,7 +126,7 @@ io.on("connection", (socket) => {
 			},
 		});
 
-		socket.emit("charging-overstay", data);
+		io.to(data.ev_charger_id).emit("charging-overstay", data);
 	});
 
 	socket.on("unplugged-charger", (data) => {
@@ -136,7 +136,7 @@ io.on("connection", (socket) => {
 			},
 		});
 
-		socket.emit("unplugged-charger", data);
+		io.to(data.ev_charger_id).emit("unplugged-charger", data);
 	});
 
 	socket.on("disconnect", () => {
